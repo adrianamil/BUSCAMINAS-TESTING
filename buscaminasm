@@ -1,179 +1,185 @@
-import tkinter as tk
+import pygame
+import sys
 import random
 
+# -------- CONFIG --------
+CELL_SIZE = 32
+MARGIN = 2
+FONT_NAME = "segoeui"
+
+# -------- COLORES --------
+BG_COLOR = (245, 245, 245)
+HEADER_COLOR = (30, 144, 255)
+TEXT_COLOR = (255, 255, 255)
+CELL_COLOR = (200, 200, 200)
+CELL_BORDER = (100, 100, 100)
+REVEALED_COLOR = (230, 230, 230)
+FLAG_COLOR = (255, 0, 0)
+
+# -------- FUNCIONES DE JUEGO --------
 class Buscaminas:
-    def _init_(self, root, filas, columnas, num_minas):
-        """
-        Inicializa el juego Buscaminas con un tablero del tamaño dado y minas.
-        """
-        self.root = root
+    def __init__(self, filas, columnas, minas):
         self.filas = filas
         self.columnas = columnas
-        self.num_minas = num_minas
-        self.tablero = []  # Contendrá los valores del juego (números o 'M')
-        self.botones = []  # Botones en la interfaz
-        self.estado_juego = "jugando"  # Estados: jugando, perdido, ganado
-        self.casillas_reveladas = 0
-        self.casillas_marcadas = 0
-        self.bandera = 'F'  # Símbolo para marcar posibles minas
+        self.minas_total = minas
+        self.reiniciar()
 
-        self.generar_tablero()
-        self.crear_interfaz()
-
-    def generar_tablero(self):
-        """
-        Genera un tablero con minas y números que indican la cantidad de minas adyacentes.
-        """
+    def reiniciar(self):
         self.tablero = [[0 for _ in range(self.columnas)] for _ in range(self.filas)]
+        self.reveladas = [[False]*self.columnas for _ in range(self.filas)]
+        self.banderas = [[False]*self.columnas for _ in range(self.filas)]
+        self.juego_terminado = False
+        self.ganaste = False
+        self.minas_restantes = self.minas_total
 
-        # Colocar minas en posiciones aleatorias
         minas_colocadas = 0
-        while minas_colocadas < self.num_minas:
-            fila = random.randint(0, self.filas - 1)
-            columna = random.randint(0, self.columnas - 1)
-            if self.tablero[fila][columna] != 'M':
-                self.tablero[fila][columna] = 'M'
+        while minas_colocadas < self.minas_total:
+            f = random.randint(0, self.filas-1)
+            c = random.randint(0, self.columnas-1)
+            if self.tablero[f][c] != 'M':
+                self.tablero[f][c] = 'M'
                 minas_colocadas += 1
 
-        # Calcular números de minas adyacentes
-        for fila in range(self.filas):
-            for col in range(self.columnas):
-                if self.tablero[fila][col] == 'M':
+        for f in range(self.filas):
+            for c in range(self.columnas):
+                if self.tablero[f][c] == 'M':
                     continue
+                count = 0
                 for i in range(-1, 2):
                     for j in range(-1, 2):
-                        if 0 <= fila + i < self.filas and 0 <= col + j < self.columnas:
-                            if self.tablero[fila + i][col + j] == 'M':
-                                self.tablero[fila][col] += 1
+                        nf, nc = f+i, c+j
+                        if 0 <= nf < self.filas and 0 <= nc < self.columnas:
+                            if self.tablero[nf][nc] == 'M':
+                                count += 1
+                self.tablero[f][c] = count
 
-    def crear_interfaz(self):
-        """
-        Crea la cuadrícula de botones en pantalla y una etiqueta de estado del juego.
-        """
-        for fila in range(self.filas):
-            fila_botones = []
-            for columna in range(self.columnas):
-                boton = tk.Button(self.root, width=3, height=1,
-                                  command=lambda f=fila, c=columna: self.abrir_celda(f, c))
-                boton.grid(row=fila, column=columna)
-                boton.bind("<Button-3>", lambda event, f=fila, c=columna: self.marcar_bandera(f, c))
-                fila_botones.append(boton)
-            self.botones.append(fila_botones)
-
-        # Etiqueta inferior para mensajes de estado
-        self.estado = tk.Label(self.root, text="¡Juega Buscaminas!", font=("Arial", 14))
-        self.estado.grid(row=self.filas, columnspan=self.columnas)
-
-    def abrir_celda(self, fila, columna):
-        """
-        Lógica al hacer clic izquierdo en una celda. Revela el contenido.
-        """
-        if self.estado_juego != "jugando":
+    def revelar(self, f, c):
+        if self.juego_terminado or self.banderas[f][c] or self.reveladas[f][c]:
             return
-
-        boton = self.botones[fila][columna]
-        if boton['state'] == "disabled" or boton['text'] == self.bandera:
+        self.reveladas[f][c] = True
+        if self.tablero[f][c] == 'M':
+            self.juego_terminado = True
             return
-
-        if self.tablero[fila][columna] == 'M':
-            self.mostrar_minas()
-            boton.config(text='M', bg="red")
-            self.estado.config(text="¡Perdiste! Has tocado una mina.")
-            self.estado_juego = "perdido"
-        else:
-            self.revelar(fila, columna)
-            if self.casillas_reveladas == (self.filas * self.columnas - self.num_minas):
-                self.estado.config(text="¡Felicidades! Has ganado.")
-                self.estado_juego = "ganado"
-                self.finalizar_juego()
-
-    def revelar(self, fila, columna):
-        """
-        Revela recursivamente las celdas vacías y detiene si encuentra número.
-        """
-        if not (0 <= fila < self.filas and 0 <= columna < self.columnas):
-            return
-
-        boton = self.botones[fila][columna]
-        if boton['state'] == "disabled" or boton['text'] == self.bandera:
-            return
-
-        valor = self.tablero[fila][columna]
-        boton.config(text=str(valor) if valor > 0 else "", state="disabled", relief=tk.SUNKEN)
-        self.casillas_reveladas += 1
-
-        if valor == 0:
+        if self.tablero[f][c] == 0:
             for i in range(-1, 2):
                 for j in range(-1, 2):
-                    if i != 0 or j != 0:
-                        self.revelar(fila + i, columna + j)
+                    nf, nc = f+i, c+j
+                    if 0 <= nf < self.filas and 0 <= nc < self.columnas:
+                        self.revelar(nf, nc)
+        self.verificar_victoria()
 
-    def mostrar_minas(self):
-        """
-        Muestra todas las minas del tablero (al perder).
-        """
-        for fila in range(self.filas):
-            for col in range(self.columnas):
-                if self.tablero[fila][col] == 'M':
-                    self.botones[fila][col].config(text='M', bg="red")
+    def verificar_victoria(self):
+        for f in range(self.filas):
+            for c in range(self.columnas):
+                if self.tablero[f][c] != 'M' and not self.reveladas[f][c]:
+                    return
+        self.juego_terminado = True
+        self.ganaste = True
 
-    def marcar_bandera(self, fila, columna):
-        """
-        Coloca o quita una bandera con clic derecho.
-        """
-        if self.estado_juego != "jugando":
+    def marcar_bandera(self, f, c):
+        if self.reveladas[f][c] or self.juego_terminado:
             return
-        boton = self.botones[fila][columna]
-        if boton['state'] == "disabled":
-            return
-        if boton['text'] == self.bandera:
-            boton.config(text="")
-            self.casillas_marcadas -= 1
-        else:
-            boton.config(text=self.bandera)
-            self.casillas_marcadas += 1
+        self.banderas[f][c] = not self.banderas[f][c]
+        self.minas_restantes += -1 if self.banderas[f][c] else 1
 
-    def finalizar_juego(self):
-        """
-        Deshabilita todas las celdas una vez termina el juego.
-        """
-        for fila in range(self.filas):
-            for col in range(self.columnas):
-                self.botones[fila][col].config(state="disabled")
+# -------- DIBUJAR --------
+def dibujar_tablero(screen, juego, fuente, ancho, alto):
+    screen.fill(BG_COLOR)
+    pygame.draw.rect(screen, HEADER_COLOR, (0, 0, ancho, 50))
+    texto = fuente.render(f"💣 Minas restantes: {juego.minas_restantes}", True, TEXT_COLOR)
+    screen.blit(texto, (ancho//2 - texto.get_width()//2, 10))
 
+    for f in range(juego.filas):
+        for c in range(juego.columnas):
+            x = c * (CELL_SIZE + MARGIN) + MARGIN
+            y = f * (CELL_SIZE + MARGIN) + 50 + MARGIN
+            rect = pygame.Rect(x, y, CELL_SIZE, CELL_SIZE)
 
-# ------------------------
-# Menú de dificultad
-# ------------------------
+            if juego.reveladas[f][c]:
+                pygame.draw.rect(screen, REVEALED_COLOR, rect)
+                pygame.draw.rect(screen, CELL_BORDER, rect, 1)
+                valor = juego.tablero[f][c]
+                if valor != 0:
+                    num = fuente.render(str(valor), True, (0, 0, 0))
+                    screen.blit(num, (x + 10, y + 5))
+            elif juego.banderas[f][c]:
+                pygame.draw.rect(screen, CELL_COLOR, rect)
+                pygame.draw.rect(screen, CELL_BORDER, rect, 1)
+                bandera = fuente.render("🚩", True, FLAG_COLOR)
+                screen.blit(bandera, (x + 4, y + 2))
+            else:
+                pygame.draw.rect(screen, CELL_COLOR, rect)
+                pygame.draw.rect(screen, CELL_BORDER, rect, 2)
 
-def iniciar_juego(dificultad):
-    """
-    Cierra el menú e inicia el juego con el nivel seleccionado.
-    """
-    menu.destroy()
-    if dificultad == "papita":
-        filas, columnas, minas = 6, 6, 5
-    elif dificultad == "facil":
-        filas, columnas, minas = 10, 10, 15
-    elif dificultad == "medio":
-        filas, columnas, minas = 18, 18, 40
-    else:  # dificil
-        filas, columnas, minas = 25, 25, 99
+    if juego.juego_terminado:
+        msg = "¡Ganaste! 🎉" if juego.ganaste else "💥 Perdiste"
+        texto = fuente.render(msg, True, (255, 0, 0))
+        screen.blit(texto, (ancho//2 - texto.get_width()//2, alto - 40))
 
-    root = tk.Tk()
-    root.title("Buscaminas")
-    Buscaminas(root, filas, columnas, minas)
-    root.mainloop()
+    pygame.display.flip()
 
-# Crear ventana de menú
-menu = tk.Tk()
-menu.title("Selecciona la dificultad")
-tk.Label(menu, text="Selecciona el nivel de dificultad", font=("Arial", 14)).pack(pady=10)
+# -------- MENÚ --------
+def mostrar_menu():
+    pygame.init()
+    screen = pygame.display.set_mode((400, 400))
+    pygame.display.set_caption("Selecciona dificultad")
+    fuente = pygame.font.SysFont(FONT_NAME, 24)
+    opciones = [("🟣 Papita (6x6)", 6, 6, 5),
+                ("🟢 Fácil (10x10)", 10, 10, 15),
+                ("🟡 Medio (18x18)", 18, 18, 40),
+                ("🔴 Difícil (25x25)", 25, 25, 99)]
+    botones = []
+    for i, (txt, f, c, m) in enumerate(opciones):
+        rect = pygame.Rect(60, 80 + i*70, 280, 50)
+        botones.append((rect, txt, (f, c, m)))
 
-# Botones de dificultad
-tk.Button(menu, text="🟣 Papita (6x6)", command=lambda: iniciar_juego("papita"), width=20).pack(pady=5)
-tk.Button(menu, text="🟢 Fácil (10x10)", command=lambda: iniciar_juego("facil"), width=20).pack(pady=5)
-tk.Button(menu, text="🟡 Medio (18x18)", command=lambda: iniciar_juego("medio"), width=20).pack(pady=5)
-tk.Button(menu, text="🔴 Difícil (25x25)", command=lambda: iniciar_juego("dificil"), width=20).pack(pady=5)
+    while True:
+        screen.fill((255, 255, 255))
+        titulo = fuente.render("Selecciona la dificultad", True, (0, 0, 0))
+        screen.blit(titulo, (200 - titulo.get_width()//2, 30))
 
-menu.mainloop()
+        for rect, txt, _ in botones:
+            pygame.draw.rect(screen, (200, 220, 255), rect, border_radius=10)
+            label = fuente.render(txt, True, (0, 0, 0))
+            screen.blit(label, (rect.x + 10, rect.y + 12))
+
+        pygame.display.flip()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                for rect, _, config in botones:
+                    if rect.collidepoint(event.pos):
+                        return config
+
+# -------- MAIN --------
+def main():
+    filas, columnas, minas = mostrar_menu()
+    ancho = columnas * (CELL_SIZE + MARGIN) + MARGIN
+    alto = filas * (CELL_SIZE + MARGIN) + 50 + 60
+
+    screen = pygame.display.set_mode((ancho, alto))
+    pygame.display.set_caption("Buscaminas")
+    fuente = pygame.font.SysFont(FONT_NAME, 24)
+    juego = Buscaminas(filas, columnas, minas)
+
+    while True:
+        dibujar_tablero(screen, juego, fuente, ancho, alto)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN and not juego.juego_terminado:
+                x, y = event.pos
+                if y > 50:
+                    f = (y - 50) // (CELL_SIZE + MARGIN)
+                    c = x // (CELL_SIZE + MARGIN)
+                    if 0 <= f < filas and 0 <= c < columnas:
+                        if event.button == 1:
+                            juego.revelar(f, c)
+                        elif event.button == 3:
+                            juego.marcar_bandera(f, c)
+
+if __name__ == "__main__":
+    main()
