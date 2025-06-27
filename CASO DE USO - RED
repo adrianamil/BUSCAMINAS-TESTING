@@ -1,0 +1,14 @@
+import unittest
+
+class TestBuscaminas(unittest.TestCase):
+    
+    def test_tablero_generado_correctamente(self):
+        game = Buscaminas()
+        tablero = game.generar_tablero(10, 10, 15)  # 10x10, 15 minas
+        self.assertEqual(len(tablero), 10)  # 10 filas
+        self.assertEqual(len(tablero[0]), 10)  # 10 columnas
+        minas = sum(row.count('M') for row in tablero)
+        self.assertEqual(minas, 15)  # 15 minas en total
+
+if __name__ == '__main__':
+    unittest.main()
