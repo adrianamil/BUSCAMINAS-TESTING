@@ -1,0 +1,18 @@
+import random
+
+class Buscaminas:
+    
+    def generar_tablero(self, filas, columnas, num_minas):
+        # Crear un tablero vacío
+        tablero = [['' for _ in range(columnas)] for _ in range(filas)]
+        
+        # Colocar las minas aleatoriamente
+        minas_colocadas = 0
+        while minas_colocadas < num_minas:
+            fila = random.randint(0, filas - 1)
+            columna = random.randint(0, columnas - 1)
+            if tablero[fila][columna] != 'M':  # Asegurarse de no colocar dos minas en la misma celda
+                tablero[fila][columna] = 'M'
+                minas_colocadas += 1
+        
+        return tablero
