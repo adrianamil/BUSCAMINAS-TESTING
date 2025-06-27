@@ -9,120 +9,120 @@ class Buscaminas:
         self.num_minas = num_minas
         self.tablero = []
         self.botones = []
-        self.estado_juego = "jugando"  # Estado del juego: "jugando", "perdido", "ganado"
+        self.estado_juego = "jugando"  # Estado: jugando, perdido, ganado
         self.casillas_reveladas = 0
         self.casillas_marcadas = 0
-        self.bandera = 'F'  # Definir el símbolo de la bandera
+        self.bandera = 'F'
 
-        # Crear el tablero y las minas
         self.generar_tablero()
-
-        # Crear la interfaz de usuario
         self.crear_interfaz()
 
     def generar_tablero(self):
-        """Genera un tablero con minas distribuidas aleatoriamente"""
-        self.tablero = [[0 for _ in range(self.columnas)] for _ in range(self.filas)]  # Inicializamos con 0
+        self.tablero = [[0 for _ in range(self.columnas)] for _ in range(self.filas)]
         
-        # Colocar las minas aleatoriamente
         minas_colocadas = 0
         while minas_colocadas < self.num_minas:
             fila = random.randint(0, self.filas - 1)
             columna = random.randint(0, self.columnas - 1)
-            if self.tablero[fila][columna] != 'M':  # Asegurarse de no colocar dos minas en la misma celda
+            if self.tablero[fila][columna] != 'M':
                 self.tablero[fila][columna] = 'M'
                 minas_colocadas += 1
 
-        # Calcular los números en las celdas (número de minas adyacentes)
+        # 👇 CORRECCIÓN AQUÍ
         for fila in range(self.filas):
             for col in range(self.columnas):
                 if self.tablero[fila][col] == 'M':
                     continue
-                # Contar minas en las celdas adyacentes
                 for i in range(-1, 2):
                     for j in range(-1, 2):
                         if 0 <= fila + i < self.filas and 0 <= col + j < self.columnas:
-                            if self.tablero[fila + i][columna + j] == 'M':
+                            if self.tablero[fila + i][col + j] == 'M':
                                 self.tablero[fila][col] += 1
 
     def crear_interfaz(self):
-        """Crear la interfaz visual del tablero"""
         for fila in range(self.filas):
             fila_botones = []
             for columna in range(self.columnas):
-                boton = tk.Button(self.root, width=3, height=1, 
-                                 command=lambda f=fila, c=columna: self.abrir_celda(f, c))
+                boton = tk.Button(self.root, width=3, height=1,
+                                  command=lambda f=fila, c=columna: self.abrir_celda(f, c))
                 boton.grid(row=fila, column=columna)
-                # Detectar clic derecho para colocar bandera
                 boton.bind("<Button-3>", lambda event, f=fila, c=columna: self.marcar_bandera(f, c))
                 fila_botones.append(boton)
             self.botones.append(fila_botones)
 
-        # Etiqueta para mostrar mensajes de estado
         self.estado = tk.Label(self.root, text="¡Juega Buscaminas!", font=("Arial", 14))
         self.estado.grid(row=self.filas, columnspan=self.columnas)
 
     def abrir_celda(self, fila, columna):
-        """Función para abrir una celda cuando se hace clic en ella"""
-        if self.estado_juego != "jugando" or self.botones[fila][columna]['state'] == "disabled":
-            return  # Si el juego ya terminó o la celda ya está revelada, no hacer nada
+        if self.estado_juego != "jugando":
+            return
+
+        boton = self.botones[fila][columna]
+        if boton['state'] == "disabled" or boton['text'] == self.bandera:
+            return
 
         if self.tablero[fila][columna] == 'M':
-            # Mostrar todas las minas
             self.mostrar_minas()
-            self.botones[fila][columna].config(text='M', bg="red")
+            boton.config(text='M', bg="red")
             self.estado.config(text="¡Perdiste! Has tocado una mina.")
             self.estado_juego = "perdido"
         else:
-            self.botones[fila][columna].config(text=str(self.tablero[fila][columna]), state="disabled")
-            self.casillas_reveladas += 1
-            if self.tablero[fila][columna] == 0:
-                self.abrir_adyacentes(fila, columna)
+            self.revelar(fila, columna)
             if self.casillas_reveladas == (self.filas * self.columnas - self.num_minas):
                 self.estado.config(text="¡Felicidades! Has ganado.")
                 self.estado_juego = "ganado"
+                self.finalizar_juego()
+
+    def revelar(self, fila, columna):
+        if not (0 <= fila < self.filas and 0 <= columna < self.columnas):
+            return
+
+        boton = self.botones[fila][columna]
+        if boton['state'] == "disabled" or boton['text'] == self.bandera:
+            return
+
+        valor = self.tablero[fila][columna]
+        boton.config(text=str(valor) if valor > 0 else "", state="disabled", relief=tk.SUNKEN)
+        self.casillas_reveladas += 1
+
+        if valor == 0:
+            for i in range(-1, 2):
+                for j in range(-1, 2):
+                    if i != 0 or j != 0:
+                        self.revelar(fila + i, columna + j)
 
     def abrir_adyacentes(self, fila, columna):
-        """Abrir las celdas adyacentes si no hay minas cerca"""
-        for i in range(-1, 2):
-            for j in range(-1, 2):
-                if 0 <= fila + i < self.filas and 0 <= columna + j < self.columnas:
-                    if self.botones[fila + i][columna + j]['state'] == "normal":
-                        self.botones[fila + i][columna + j].config(
-                            text=str(self.tablero[fila + i][columna + j]), state="disabled")
-                        self.casillas_reveladas += 1
-                        if self.tablero[fila + i][columna + j] == 0:
-                            self.abrir_adyacentes(fila + i, columna + j)
+        """Ya integrada dentro de 'revelar' ahora, no es necesaria por separado"""
+        pass
 
     def mostrar_minas(self):
-        """Mostrar todas las minas del tablero cuando el jugador pierde"""
         for fila in range(self.filas):
             for col in range(self.columnas):
                 if self.tablero[fila][col] == 'M':
                     self.botones[fila][col].config(text='M', bg="red")
 
     def marcar_bandera(self, fila, columna):
-        """Colocar o quitar una bandera en la celda seleccionada"""
-        if self.botones[fila][columna]['state'] == "normal" and self.estado_juego == "jugando":
-            if self.botones[fila][columna]['text'] == self.bandera:
-                self.botones[fila][columna].config(text="")
-                self.casillas_marcadas -= 1
-            else:
-                self.botones[fila][columna].config(text=self.bandera)
-                self.casillas_marcadas += 1
-    
+        if self.estado_juego != "jugando":
+            return
+        boton = self.botones[fila][columna]
+        if boton['state'] == "disabled":
+            return
+        if boton['text'] == self.bandera:
+            boton.config(text="")
+            self.casillas_marcadas -= 1
+        else:
+            boton.config(text=self.bandera)
+            self.casillas_marcadas += 1
+
     def finalizar_juego(self):
-        """Deshabilitar todos los botones al finalizar el juego"""
         for fila in range(self.filas):
             for col in range(self.columnas):
                 self.botones[fila][col].config(state="disabled")
 
-# Inicialización de la ventana
-root = tk.Tk()
-root.title("Buscaminas")
 
-# Crear el juego
-juego = Buscaminas(root)
-
-# Iniciar el bucle de la interfaz gráfica
-root.mainloop()
+# Ejecutar juego
+if __name__ == "__main__":
+    root = tk.Tk()
+    root.title("Buscaminas")
+    juego = Buscaminas(root)
+    root.mainloop()
