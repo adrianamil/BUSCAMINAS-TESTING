@@ -2,24 +2,31 @@ import tkinter as tk
 import random
 
 class Buscaminas:
-    def __init__(self, root, filas=10, columnas=10, num_minas=15):
+    def _init_(self, root, filas, columnas, num_minas):
+        """
+        Inicializa el juego Buscaminas con un tablero del tamaño dado y minas.
+        """
         self.root = root
         self.filas = filas
         self.columnas = columnas
         self.num_minas = num_minas
-        self.tablero = []
-        self.botones = []
-        self.estado_juego = "jugando"  # Estado: jugando, perdido, ganado
+        self.tablero = []  # Contendrá los valores del juego (números o 'M')
+        self.botones = []  # Botones en la interfaz
+        self.estado_juego = "jugando"  # Estados: jugando, perdido, ganado
         self.casillas_reveladas = 0
         self.casillas_marcadas = 0
-        self.bandera = 'F'
+        self.bandera = 'F'  # Símbolo para marcar posibles minas
 
         self.generar_tablero()
         self.crear_interfaz()
 
     def generar_tablero(self):
+        """
+        Genera un tablero con minas y números que indican la cantidad de minas adyacentes.
+        """
         self.tablero = [[0 for _ in range(self.columnas)] for _ in range(self.filas)]
-        
+
+        # Colocar minas en posiciones aleatorias
         minas_colocadas = 0
         while minas_colocadas < self.num_minas:
             fila = random.randint(0, self.filas - 1)
@@ -28,7 +35,7 @@ class Buscaminas:
                 self.tablero[fila][columna] = 'M'
                 minas_colocadas += 1
 
-        # 👇 CORRECCIÓN AQUÍ
+        # Calcular números de minas adyacentes
         for fila in range(self.filas):
             for col in range(self.columnas):
                 if self.tablero[fila][col] == 'M':
@@ -40,6 +47,9 @@ class Buscaminas:
                                 self.tablero[fila][col] += 1
 
     def crear_interfaz(self):
+        """
+        Crea la cuadrícula de botones en pantalla y una etiqueta de estado del juego.
+        """
         for fila in range(self.filas):
             fila_botones = []
             for columna in range(self.columnas):
@@ -50,10 +60,14 @@ class Buscaminas:
                 fila_botones.append(boton)
             self.botones.append(fila_botones)
 
+        # Etiqueta inferior para mensajes de estado
         self.estado = tk.Label(self.root, text="¡Juega Buscaminas!", font=("Arial", 14))
         self.estado.grid(row=self.filas, columnspan=self.columnas)
 
     def abrir_celda(self, fila, columna):
+        """
+        Lógica al hacer clic izquierdo en una celda. Revela el contenido.
+        """
         if self.estado_juego != "jugando":
             return
 
@@ -74,6 +88,9 @@ class Buscaminas:
                 self.finalizar_juego()
 
     def revelar(self, fila, columna):
+        """
+        Revela recursivamente las celdas vacías y detiene si encuentra número.
+        """
         if not (0 <= fila < self.filas and 0 <= columna < self.columnas):
             return
 
@@ -91,17 +108,19 @@ class Buscaminas:
                     if i != 0 or j != 0:
                         self.revelar(fila + i, columna + j)
 
-    def abrir_adyacentes(self, fila, columna):
-        """Ya integrada dentro de 'revelar' ahora, no es necesaria por separado"""
-        pass
-
     def mostrar_minas(self):
+        """
+        Muestra todas las minas del tablero (al perder).
+        """
         for fila in range(self.filas):
             for col in range(self.columnas):
                 if self.tablero[fila][col] == 'M':
                     self.botones[fila][col].config(text='M', bg="red")
 
     def marcar_bandera(self, fila, columna):
+        """
+        Coloca o quita una bandera con clic derecho.
+        """
         if self.estado_juego != "jugando":
             return
         boton = self.botones[fila][columna]
@@ -115,14 +134,46 @@ class Buscaminas:
             self.casillas_marcadas += 1
 
     def finalizar_juego(self):
+        """
+        Deshabilita todas las celdas una vez termina el juego.
+        """
         for fila in range(self.filas):
             for col in range(self.columnas):
                 self.botones[fila][col].config(state="disabled")
 
 
-# Ejecutar juego
-if __name__ == "__main__":
+# ------------------------
+# Menú de dificultad
+# ------------------------
+
+def iniciar_juego(dificultad):
+    """
+    Cierra el menú e inicia el juego con el nivel seleccionado.
+    """
+    menu.destroy()
+    if dificultad == "papita":
+        filas, columnas, minas = 6, 6, 5
+    elif dificultad == "facil":
+        filas, columnas, minas = 10, 10, 15
+    elif dificultad == "medio":
+        filas, columnas, minas = 18, 18, 40
+    else:  # dificil
+        filas, columnas, minas = 25, 25, 99
+
     root = tk.Tk()
     root.title("Buscaminas")
-    juego = Buscaminas(root)
+    Buscaminas(root, filas, columnas, minas)
     root.mainloop()
+
+# Crear ventana de menú
+menu = tk.Tk()
+menu.title("Selecciona la dificultad")
+tk.Label(menu, text="Selecciona el nivel de dificultad", font=("Arial", 14)).pack(pady=10)
+
+# Botones de dificultad
+tk.Button(menu, text="🟣 Papita (6x6)", command=lambda: iniciar_juego("papita"), width=20).pack(pady=5)
+tk.Button(menu, text="🟢 Fácil (10x10)", command=lambda: iniciar_juego("facil"), width=20).pack(pady=5)
+tk.Button(menu, text="🟡 Medio (18x18)", command=lambda: iniciar_juego("medio"), width=20).pack(pady=5)
+tk.Button(menu, text="🔴 Difícil (25x25)", command=lambda: iniciar_juego("dificil"), width=20).pack(pady=5)
+
+menu.mainloop()
