@@ -1,0 +1,74 @@
+import unittest
+from BUSCAMINAS import Buscaminas  # Asegúrate de que el archivo principal se llame BUSCAMINAS.py
+
+class TestBuscaminas(unittest.TestCase):
+
+    def test_generar_tablero_con_n_minas(self):
+        juego = Buscaminas(6, 6, 10)
+        minas = sum(fila.count('M') for fila in juego.tablero)
+        self.assertEqual(minas, 10)
+
+    def test_revelar_celda_segura(self):
+        juego = Buscaminas(3, 3, 0)
+        juego.revelar(0, 0)
+        self.assertTrue(juego.reveladas[0][0])
+        self.assertFalse(juego.juego_terminado)
+
+    def test_perder_al_revelar_mina(self):
+        juego = Buscaminas(3, 3, 1)
+        juego.tablero = [[0, 0, 0], [0, 'M', 0], [0, 0, 0]]
+        juego.revelar(1, 1)
+        self.assertTrue(juego.juego_terminado)
+        self.assertFalse(juego.ganaste)
+
+    def test_marcar_y_desmarcar_bandera(self):
+        juego = Buscaminas(3, 3, 1)
+        juego.marcar_bandera(0, 0)
+        self.assertTrue(juego.banderas[0][0])
+        juego.marcar_bandera(0, 0)
+        self.assertFalse(juego.banderas[0][0])
+
+    def test_condicion_de_victoria(self):
+        juego = Buscaminas(2, 2, 1)
+        juego.tablero = [['M', 1], [1, 1]]
+        juego.revelar(1, 0)
+        juego.revelar(1, 1)
+        juego.revelar(0, 1)
+        self.assertTrue(juego.juego_terminado)
+        self.assertTrue(juego.ganaste)
+
+    def test_no_revelar_celda_con_bandera(self):
+        juego = Buscaminas(3, 3, 0)
+        juego.marcar_bandera(0, 0)
+        juego.revelar(0, 0)
+        self.assertFalse(juego.reveladas[0][0])
+
+    def test_no_marcar_bandera_en_celda_revelada(self):
+        juego = Buscaminas(3, 3, 0)
+        juego.revelar(0, 0)
+        juego.marcar_bandera(0, 0)
+        self.assertFalse(juego.banderas[0][0])
+
+    def test_no_revelar_celda_ya_revelada(self):
+        juego = Buscaminas(3, 3, 0)
+        juego.revelar(0, 0)
+        juego.reveladas[0][0] = True
+        juego.revelar(0, 0)
+        self.assertTrue(juego.reveladas[0][0])  # se mantiene sin cambios
+
+    def test_revelado_en_cascada(self):
+        juego = Buscaminas(3, 3, 0)
+        juego.revelar(1, 1)
+        reveladas = sum(row.count(True) for row in juego.reveladas)
+        self.assertEqual(reveladas, 9)
+
+    def test_minas_restantes_con_bandera(self):
+        juego = Buscaminas(3, 3, 1)
+        self.assertEqual(juego.minas_restantes, 1)
+        juego.marcar_bandera(0, 0)
+        self.assertEqual(juego.minas_restantes, 0)
+        juego.marcar_bandera(0, 0)
+        self.assertEqual(juego.minas_restantes, 1)
+
+if __name__ == '__main__':
+    unittest.main()
