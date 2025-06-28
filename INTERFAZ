@@ -1,0 +1,147 @@
+import pygame
+import sys
+from BUSCAMINAS import Buscaminas
+
+# --- CONFIGURACIÓN ---
+CELL_SIZE = 32
+MARGIN = 2
+FONT_NAME = "segoeui"
+BG_COLOR = (245, 245, 245)
+HEADER_COLOR = (30, 144, 255)
+TEXT_COLOR = (255, 255, 255)
+CELL_COLOR = (200, 200, 200)
+CELL_BORDER = (100, 100, 100)
+REVEALED_COLOR = (230, 230, 230)
+
+# --- INICIALIZACIÓN ---
+pygame.init()
+pygame.mixer.init()
+
+# Carga de recursos
+bandera_img = pygame.image.load("banderin_32.png")
+bomba_img = pygame.image.load("bomba_32.png")
+explosion_img = pygame.image.load("explosion.png")
+gato_victoria = pygame.image.load("gato_victoria.png")
+
+# Sonidos
+explosion_snd = pygame.mixer.Sound("explosion.mp3")
+victoria_snd = pygame.mixer.Sound("aplausos.mp3")
+
+explosion_reproducida = False
+victoria_reproducida = False
+
+def dibujar_tablero(screen, juego, fuente, ancho, alto):
+    global explosion_reproducida, victoria_reproducida
+    screen.fill(BG_COLOR)
+    pygame.draw.rect(screen, HEADER_COLOR, (0, 0, ancho, 50))
+    texto = fuente.render(f"Minas restantes: {juego.minas_restantes}", True, TEXT_COLOR)
+    screen.blit(texto, (ancho // 2 - texto.get_width() // 2, 10))
+
+    for f in range(juego.filas):
+        for c in range(juego.columnas):
+            x = c * (CELL_SIZE + MARGIN) + MARGIN
+            y = f * (CELL_SIZE + MARGIN) + 50 + MARGIN
+            rect = pygame.Rect(x, y, CELL_SIZE, CELL_SIZE)
+
+            if juego.reveladas[f][c] or (juego.juego_terminado and juego.tablero[f][c] == 'M'):
+                pygame.draw.rect(screen, REVEALED_COLOR, rect)
+                pygame.draw.rect(screen, CELL_BORDER, rect, 1)
+                valor = juego.tablero[f][c]
+                if valor == 'M':
+                    screen.blit(bomba_img, (x, y))
+                elif valor != 0:
+                    num = fuente.render(str(valor), True, (0, 0, 0))
+                    screen.blit(num, (x + 10, y + 5))
+            elif juego.banderas[f][c]:
+                pygame.draw.rect(screen, CELL_COLOR, rect)
+                pygame.draw.rect(screen, CELL_BORDER, rect, 1)
+                screen.blit(bandera_img, (x, y))
+            else:
+                pygame.draw.rect(screen, CELL_COLOR, rect)
+                pygame.draw.rect(screen, CELL_BORDER, rect, 2)
+
+    if juego.juego_terminado:
+        if juego.ganaste:
+            if not victoria_reproducida:
+                victoria_snd.play()
+                victoria_reproducida = True
+            imagen_escalada = pygame.transform.scale(gato_victoria, (ancho // 2, alto // 2))
+            img_rect = imagen_escalada.get_rect(center=(ancho // 2, alto // 2))
+            screen.blit(imagen_escalada, img_rect)
+            texto = fuente.render(" ¡Ganaste!", True, (0, 128, 0))
+            screen.blit(texto, (ancho // 2 - texto.get_width() // 2, alto - 40))
+        else:
+            texto = fuente.render(" ¡Perdiste!", True, (255, 0, 0))
+            screen.blit(texto, (ancho // 2 - texto.get_width() // 2, alto - 40))
+
+    pygame.display.flip()
+
+def mostrar_menu():
+    screen = pygame.display.set_mode((400, 400), pygame.RESIZABLE)
+    pygame.display.set_caption("Selecciona dificultad")
+    fuente = pygame.font.SysFont(FONT_NAME, 24)
+    opciones = [("Papita (6x6)", 6, 6, 5),
+                ("Fácil (10x10)", 10, 10, 15),
+                ("Medio (16x16)", 16, 16, 40),
+                ("Difícil (20x20)", 20, 20, 60)]
+    botones = []
+    for i, (txt, f, c, m) in enumerate(opciones):
+        rect = pygame.Rect(60, 80 + i * 70, 280, 50)
+        botones.append((rect, txt, (f, c, m)))
+
+    while True:
+        screen.fill((255, 255, 255))
+        titulo = fuente.render("Selecciona la dificultad", True, (0, 0, 0))
+        screen.blit(titulo, (200 - titulo.get_width() // 2, 30))
+        for rect, txt, _ in botones:
+            pygame.draw.rect(screen, (200, 220, 255), rect, border_radius=10)
+            label = fuente.render(txt, True, (0, 0, 0))
+            screen.blit(label, (rect.x + 10, rect.y + 12))
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit(); sys.exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                for rect, _, config in botones:
+                    if rect.collidepoint(event.pos):
+                        return config
+
+def main():
+    global explosion_reproducida, victoria_reproducida
+    filas, columnas, minas = mostrar_menu()
+    ancho = columnas * (CELL_SIZE + MARGIN) + MARGIN
+    alto = filas * (CELL_SIZE + MARGIN) + 50 + 200
+    screen = pygame.display.set_mode((ancho, alto), pygame.RESIZABLE)
+    pygame.display.set_caption("Buscaminas")
+    fuente = pygame.font.SysFont(FONT_NAME, 24)
+    juego = Buscaminas(filas, columnas, minas)
+    explosion_reproducida = False
+    victoria_reproducida = False
+
+    while True:
+        dibujar_tablero(screen, juego, fuente, ancho, alto)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit(); sys.exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN and not juego.juego_terminado:
+                x, y = event.pos
+                if y > 50:
+                    f = (y - 50) // (CELL_SIZE + MARGIN)
+                    c = x // (CELL_SIZE + MARGIN)
+                    if 0 <= f < filas and 0 <= c < columnas:
+                        if event.button == 1:
+                            juego.revelar(f, c)
+                            if juego.juego_terminado and not juego.ganaste:
+                                # Mostrar explosión antes de revelar el tablero
+                                screen.fill(BG_COLOR)
+                                img_rect = explosion_img.get_rect(center=(ancho // 2, alto // 2))
+                                screen.blit(explosion_img, img_rect)
+                                pygame.display.flip()
+                                explosion_snd.play()
+                                pygame.time.delay(1500)
+                        elif event.button == 3:
+                            juego.marcar_bandera(f, c)
+
+if __name__ == "__main__":
+    main()
